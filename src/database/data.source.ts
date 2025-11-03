@@ -1,4 +1,5 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Client } from 'src/modules/client/entities/Client';
 import { Role } from 'src/modules/roles/entities/Role';
 import { Operation } from 'src/modules/user/entities/Operation';
 import { User } from 'src/modules/user/entities/User';
@@ -17,7 +18,7 @@ export const DataSourceConfig: DataSourceOptions = {
   username: configService.get<string>('DB_USERNAME'),
   password: configService.get<string>('DB_PASSWORD'),
   database: configService.get<string>('DB_DATABASE'),
-  entities: [User, Operation, Role],
+  entities: [User, Operation, Role, Client],
   synchronize: true,
 };
 

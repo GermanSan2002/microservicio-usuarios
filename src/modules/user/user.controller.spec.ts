@@ -61,15 +61,16 @@ describe('UserController', () => {
     it('should create a new user', async () => {
       const res = mockResponse();
       const credentialsDTO: CredentialsDTO = { email: 'test@example.com', password: 'password' };
+      const idAppClient = 'client-123'; // Añade el argumento que falta
       mockUserService.createUser.mockResolvedValue(testUserDTO);
-
-      await controller.createAccount(credentialsDTO, res);
-
-      expect(userService.createUser).toHaveBeenCalledWith(credentialsDTO);
+  
+      await controller.createAccount(idAppClient, credentialsDTO, res); // Asegúrate de pasar todos los argumentos requeridos
+  
+      expect(userService.createUser).toHaveBeenCalledWith(credentialsDTO, idAppClient);
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(testUserDTO);
     });
-  });
+  });  
 
   describe('updateAccount', () => {
     it('should update an existing user', async () => {

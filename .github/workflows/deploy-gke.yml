@@ -1,0 +1,81 @@
+name: Deploy to GKE
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_KEY_FILE }}
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        service_account_key: ${{ secrets.GCP_KEY_FILE }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Authenticate Docker to GCR
+      run: gcloud auth configure-docker
+
+    - name: Set environment variables
+      run: |
+        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> $GITHUB_ENV
+        echo "HASH_SALT_ROUNDS=${{ secrets.HASH_SALT_ROUNDS }}" >> $GITHUB_ENV
+        echo "DB_HOST=${{ secrets.DB_HOST }}" >> $GITHUB_ENV
+        echo "DB_PORT=${{ secrets.DB_PORT }}" >> $GITHUB_ENV
+        echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
+        echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
+        echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> $GITHUB_ENV
+        echo "MAIL_HOST=${{ secrets.MAIL_HOST }}" >> $GITHUB_ENV
+        echo "MAIL_PORT=${{ secrets.MAIL_PORT }}" >> $GITHUB_ENV
+        echo "MAIL_USER=${{ secrets.MAIL_USER }}" >> $GITHUB_ENV
+        echo "MAIL_PASS=${{ secrets.MAIL_PASS }}" >> $GITHUB_ENV
+        echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> $GITHUB_ENV
+        echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> $GITHUB_ENV
+
+    - name: Build Docker images
+      run: |
+        docker build -t micro-users-app:latest .
+        docker build -t mysql:latest -f Dockerfile.mysql .
+
+    - name: List Docker images
+      run: docker images
+
+    - name: Tag Docker images
+      run: |
+        docker tag micro-users-app:latest gcr.io/${{ secrets.GCP_PROJECT_ID }}/micro-users-app:v1
+        docker tag mysql:latest gcr.io/${{ secrets.GCP_PROJECT_ID }}/mysql:v1
+
+    - name: Push Docker images to GCR
+      run: |
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/micro-users-app:v1
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mysql:v1
+
+    - name: Install gke-gcloud-auth-plugin
+      run: |
+        gcloud components install gke-gcloud-auth-plugin
+
+    - name: Set up Kubeconfig
+      run: gcloud container clusters get-credentials cluster-micro --zone us-central1
+
+    - name: Deploy to GKE
+      run: |
+        kubectl apply -f k8s/secrets.yaml
+        kubectl apply -f k8s/mysql.yaml
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+
+    - name: Get service URL
+      run: |
+        SERVICE_IP=$(kubectl get svc micro-users -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        echo "Application is running at http://$SERVICE_IP"

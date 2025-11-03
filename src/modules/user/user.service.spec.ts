@@ -9,14 +9,15 @@ import { ConfigService } from '@nestjs/config';
 import { Operation } from './entities/Operation';
 import { Role } from '../roles/entities/Role';
 import { NotFoundException } from '@nestjs/common';
+import { Client } from '../client/entities/Client';
 
 describe('UserService', () => {
   let service: UserService;
   let userRepository: Repository<User>;
   let operationRepository: Repository<Operation>;
   let roleRepository: Repository<Role>;
+  let clientRepository: Repository<Client>;
   let authService: AuthService;
-  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -35,10 +36,13 @@ describe('UserService', () => {
           useClass: Repository,
         },
         {
+          provide: getRepositoryToken(Client), // Provisión del Client repository
+          useClass: Repository,
+        },
+        {
           provide: AuthService,
           useValue: {
             hashPassword: jest.fn().mockResolvedValue('hashedPassword'),
-            generateToken: jest.fn().mockReturnValue('fakeToken'),
           },
         },
         {
@@ -54,11 +58,10 @@ describe('UserService', () => {
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
     operationRepository = module.get<Repository<Operation>>(getRepositoryToken(Operation));
     roleRepository = module.get<Repository<Role>>(getRepositoryToken(Role));
+    clientRepository = module.get<Repository<Client>>(getRepositoryToken(Client)); // Definición de clientRepository
     authService = module.get<AuthService>(AuthService);
-    configService = module.get<ConfigService>(ConfigService);
 
-    // Mock the findByIds and create methods
-    jest.spyOn(roleRepository, 'findByIds').mockResolvedValue([]); // Mock `findByIds` to return an empty array
+    jest.spyOn(roleRepository, 'findByIds').mockResolvedValue([]);
     jest.spyOn(operationRepository, 'create').mockImplementation((operation) => {
       return {
         id: '1',
@@ -66,7 +69,7 @@ describe('UserService', () => {
         detalles: operation.detalles,
         usuario: operation.usuario,
         fecha: operation.fecha || new Date(),
-      } as Operation; // Complete Operation object
+      } as Operation;
     });
   });
 
@@ -77,6 +80,13 @@ describe('UserService', () => {
   describe('createUser', () => {
     it('should create a new user', async () => {
       const credentialsDTO: CredentialsDTO = { email: 'test@example.com', password: 'password' };
+      const clientId = 'client-1';
+      const client = {
+        id: 'client-1',
+        name: 'Test Client',
+        description: 'Test Client Description',
+        users: [],
+      } as Client; // Asegurarse de que el objeto tenga todas las propiedades de Client
       const savedUser = {
         id: '1',
         nombre: 'defaultName',
@@ -86,14 +96,20 @@ describe('UserService', () => {
         fechaCreacion: new Date(),
         fechaModificacion: new Date(),
         roles: [],
+        appCliente: client,
       };
-
+  
+      jest.spyOn(clientRepository, 'findOne').mockResolvedValue(client);
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
       jest.spyOn(userRepository, 'save').mockResolvedValue(savedUser as User);
-
-      const result = await service.createUser(credentialsDTO);
-
-      expect(userRepository.findOne).toHaveBeenCalledWith({ where: { email: credentialsDTO.email } });
+  
+      const result = await service.createUser(credentialsDTO, clientId);
+  
+      expect(clientRepository.findOne).toHaveBeenCalledWith({ where: { id: clientId } });
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: credentialsDTO.email, appCliente: { id: clientId } },
+        relations: ['appCliente'],
+      });
       expect(authService.hashPassword).toHaveBeenCalledWith(credentialsDTO.password);
       expect(userRepository.save).toHaveBeenCalled();
       expect(result).toEqual({
@@ -107,13 +123,25 @@ describe('UserService', () => {
       });
     });
 
-    it('should throw an error if email already exists', async () => {
+    it('should throw an error if email already exists for the client', async () => {
       const credentialsDTO: CredentialsDTO = { email: 'test@example.com', password: 'password' };
-      const existingUser = { email: 'test@example.com' };
+      const clientId = 'client-1';
+      const existingUser = { email: 'test@example.com', appCliente: { id: clientId } };
 
+      jest.spyOn(clientRepository, 'findOne').mockResolvedValue({ id: clientId } as Client);
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(existingUser as User);
 
-      await expect(service.createUser(credentialsDTO)).rejects.toThrowError('El email ya existe');
+      await expect(service.createUser(credentialsDTO, clientId)).rejects.toThrowError('El email ya existe');
+    });
+
+    it('should throw an error if client not found', async () => {
+      const credentialsDTO: CredentialsDTO = { email: 'test@example.com', password: 'password' };
+      const clientId = 'non-existent-client';
+    
+      // Simula que no se encuentra el cliente
+      jest.spyOn(clientRepository, 'findOne').mockResolvedValue(null);
+    
+      await expect(service.createUser(credentialsDTO, clientId)).rejects.toThrow(NotFoundException);
     });
   });
 

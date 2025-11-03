@@ -1,10 +1,26 @@
+// src/user/entities/User.ts
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  ManyToMany,
+  JoinTable,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Role } from '../../roles/entities/Role';
-import { Entity, PrimaryGeneratedColumn, Column, JoinTable, ManyToMany } from 'typeorm';
+import { Operation } from './Operation';
+import { Client } from '../../client/entities/Client'
 
 @Entity()
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @ManyToOne(() => Client, (client) => client.users, { nullable: false, onDelete: 'CASCADE' })
+  appCliente: Client;
 
   @Column()
   nombre: string;
@@ -15,20 +31,19 @@ export class User {
   @Column()
   password: string;
 
-  @Column()
+  @Column({ default: 'active' })
   estado: string;
 
-  @ManyToMany(() => Role, { cascade: true }) // Definimos la relación ManyToMany con Role
-  @JoinTable() // Necesario para la tabla de unión en relaciones ManyToMany
+  @ManyToMany(() => Role)
+  @JoinTable()
   roles: Role[];
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @OneToMany(() => Operation, (operation) => operation.usuario)
+  operations: Operation[];
+
+  @CreateDateColumn()
   fechaCreacion: Date;
 
-  @Column({
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-  })
+  @UpdateDateColumn()
   fechaModificacion: Date;
 }

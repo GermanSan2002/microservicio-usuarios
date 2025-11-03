@@ -30,6 +30,7 @@ export class TokenService {
             throw new Error('JWT_SECRET is not defined');
         }
         
+        console.log(roles);
         // Extraemos los nombres de los roles para incluirlos en el token
         const roleNames = roles.map(role => role.role);
         return jwt.sign({ userId, roles: roleNames }, jwtSecret, { expiresIn: '1h' });

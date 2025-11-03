@@ -25,17 +25,19 @@ import { UserService } from './user.service';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
+  @Post(':idAppClient')
   @ApiOperation({ summary: 'Create a new user' })
+  @ApiParam({ name: 'idAppClient', description: 'App id' })
   @ApiBody({ type: CredentialsDTO })
   @ApiResponse({ status: 201, description: 'User created successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async createAccount(
+    @Param('idAppClient') idAppClient: string,
     @Body() credentialsDTO: CredentialsDTO,
     @Res() res: Response,
   ) {
     try {
-      const userDTO = await this.userService.createUser(credentialsDTO);
+      const userDTO = await this.userService.createUser(credentialsDTO, idAppClient);
       res.status(201).json(userDTO);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -100,6 +102,29 @@ export class UserController {
   ) {
     try {
       const userDTO = await this.userService.blockUser(id, motivo);
+      res.status(200).json(userDTO);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Unknown error occurred' });
+      }
+    }
+  }
+
+  @Patch(':id/Active')
+  @ApiOperation({ summary: 'Activate a user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiBody({ schema: { example: { motivo: 'Reason for activate' } } })
+  @ApiResponse({ status: 200, description: 'User activeted successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async activeAccount(
+    @Param('id') id: string,
+    @Body('motivo') motivo: string,
+    @Res() res: Response,
+  ) {
+    try {
+      const userDTO = await this.userService.activeUser(id, motivo);
       res.status(200).json(userDTO);
     } catch (error: unknown) {
       if (error instanceof Error) {

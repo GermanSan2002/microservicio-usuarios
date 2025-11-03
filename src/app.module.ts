@@ -14,6 +14,8 @@ import { UserService } from './modules/user/user.service';
 import { TokenModule } from './modules/token/token.module';
 import { Role } from './modules/roles/entities/Role';
 import { RoleModule } from './modules/roles/roles.module';
+import { Client } from './modules/client/entities/Client';
+import { ClientModule } from './modules/client/client.module';
 
 @Module({
   imports: [
@@ -22,11 +24,12 @@ import { RoleModule } from './modules/roles/roles.module';
       envFilePath: '.env', // Especifica la ruta al archivo .env
     }),
     TypeOrmModule.forRoot({ ...DataSourceConfig }),
-    TypeOrmModule.forFeature([User, Operation, Role]),
+    TypeOrmModule.forFeature([User, Operation, Role, Client]),
     UserModule,
     AuthModule,
     TokenModule,
-    RoleModule
+    RoleModule,
+    ClientModule
   ],
   controllers: [AppController, UserController],
   providers: [AppService, UserService, AuthService],

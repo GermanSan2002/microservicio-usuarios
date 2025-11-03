@@ -23,7 +23,6 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
     depends_on:
       - mysql
-    entrypoint: ["./wait-for-it.sh", "mysql:3306", "--", "npm", "run", "start:prod"]
 
   mysql:
     image: mysql:latest

@@ -10,7 +10,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') || 3000;
 
   app.enableCors({
-    origin: 'http://localhost:3000', // Cambia esto a la URL de tu frontend, o añadela manualmente
+    origin: ['http://localhost:5000', 'http://localhost:3000'], // Cambia esto a la URL de tu frontend, o añadela manualmente
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept',
   });
